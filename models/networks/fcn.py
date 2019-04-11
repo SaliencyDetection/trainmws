@@ -5,7 +5,7 @@ from torch.autograd.variable import Variable
 from .densenet import *
 from .resnet import *
 from .vgg import *
-from ..tools import fraze_bn, weight_init, dim_dict
+from .tools import fraze_bn, weight_init, dim_dict
 from .base_network import BaseNetwork
 
 import sys

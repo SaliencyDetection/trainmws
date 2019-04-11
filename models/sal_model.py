@@ -1,103 +1,69 @@
 # coding=utf-8
-import pdb
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision
+from torch.nn.utils.rnn import pack_padded_sequence
 from PIL import Image
 from .base_model import BaseModel
-import sys
 import networks
 import pdb
 
 
 class SalModel(BaseModel):
-    def __init__(self, opt):
-        BaseModel.initialize(self, opt)
-        self.name = opt.model + '_' + opt.base
-        self.v_mean = self.Tensor(opt.mean)[None, ..., None, None]
-        self.v_std = self.Tensor(opt.std)[None, ..., None, None]
-        net = getattr(networks, opt.model)(pretrained=opt.isTrain and (not opt.from_scratch),
-                                                      c_output=1,
-                                                      base=opt.base)
+    def __init__(self, opt, **kwargs):
+        super(SalModel, self).__init__(opt)
 
+        self.name = 'SalSal_' + opt.base
+        self.ws = 0.05
+
+        net = networks.DeepLab(pretrained=True, c_output=1, base=opt.base)
         net = torch.nn.parallel.DataParallel(net)
         self.net = net.cuda()
-
-        self.input = self.Tensor(opt.batchSize, opt.input_nc,
-                                 opt.imageSize, opt.imageSize)
-
-        if opt.phase is 'test':
-            pass
-            # print("===========================================LOADING parameters====================================================")
-            # model_parameters = self.load_network(model, 'G', 'best_vanila')
-            # model.load_state_dict(model_parameters)
-        else:
-            self.criterion = nn.BCEWithLogitsLoss()
-            self.optimizer = torch.optim.Adam(self.net.parameters(),
-                                                lr=opt.lr)
+        self.criterion = nn.BCEWithLogitsLoss()
+        self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.net.parameters()),
+                                            lr=opt.lr)
 
     def save(self, label):
-        self.save_network(self.net, self.name, label, self.gpu_ids)
+        self.save_network(self.net, self.name, label)
 
     def load(self, label):
         print('loading %s'%label)
-        self.load_network(self.net, self.name, label, self.gpu_ids)
+        self.load_network(self.net, self.name, label)
 
-    def show_tensorboard_eval(self, num_iter):
-        for k, v in self.performance.items():
-            self.writer.add_scalar(k, v, num_iter)
-
-    def show_tensorboard(self, num_iter, num_show=4):
-        self.writer.add_scalar('loss', self.loss, num_iter)
-        num_show = num_show if self.input.size(0) > num_show else self.input.size(0)
-
-        pred = F.sigmoid(self.prediction[:num_show])
-        pred = pred[:, None, ...]
-        self.writer.add_image('prediction', torchvision.utils.make_grid(pred.expand(-1, 3, -1, -1)).detach(), num_iter)
-
-        img = self.input[:num_show]*self.v_std + self.v_mean
-        self.writer.add_image('image', torchvision.utils.make_grid(img), num_iter)
-
-    def set_input(self, input, targets=None):
-        self.input.resize_(input.size()).copy_(input.cuda())
-        self.targets = targets
-        if targets is not None:
-            self.targets = self.targets.cuda()
-
+    def set_input(self, data):
+        self.input = data['img_sal'].cuda()
+        self.targets = data['gt_sal'].cuda()
 
     def forward(self):
         # print("We are Forwarding !!")
-        self.prediction = self.net.forward(self.input)
-        self.prediction = self.prediction.squeeze(1)
-
+        self.big_mask_logits = self.net.forward(self.input)
 
     def test(self, input, name, WW, HH):
-        self.set_input(input)
         with torch.no_grad():
-            self.forward()
-            outputs = F.sigmoid(self.prediction)
+            big_mask_logits = self.net.forward(input.cuda())
+            outputs = F.sigmoid(big_mask_logits.squeeze(1))
         outputs = outputs.detach().cpu().numpy() * 255
         for ii, msk in enumerate(outputs):
             msk = Image.fromarray(msk.astype(np.uint8))
             msk = msk.resize((WW[ii], HH[ii]))
             msk.save('{}/{}.png'.format(self.opt.results_dir, name[ii]), 'PNG')
 
-
     def backward(self):
         # Combined loss
-        self.loss_var = self.criterion(self.prediction, self.targets)
-        self.loss_var.backward()
-        self.loss = self.loss_var.data[0]
+        loss = self.criterion(self.big_mask_logits, self.targets) * (1-self.ws)
+        gt_self = F.sigmoid(self.big_mask_logits).detach()
+        gt_self[gt_self>0.5] = 1
+        gt_self[gt_self<=0.5] = 0
+        loss += self.criterion(self.big_mask_logits, gt_self) * self.ws
+        loss.backward()
+        self.loss['sal'] = loss.item()
 
-
-    def optimize_parameters(self):
+    def optimize_parameters(self, it):
         self.forward()
         self.optimizer.zero_grad()
         self.backward()
         self.optimizer.step()
-
 
     def switch_to_train(self):
         self.net.train()

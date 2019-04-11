@@ -6,7 +6,7 @@ from .densenet import *
 from .resnet import *
 from .vgg import *
 from .mobilenetv2 import *
-from ..tools import *
+from .tools import *
 from .base_network import BaseNetwork
 
 import numpy as np

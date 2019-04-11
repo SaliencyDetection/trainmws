@@ -1,53 +1,58 @@
 import argparse
 import os
+import torch
+import models
 
 
-class _BaseOptions:
+class BaseOptions:
     def __init__(self):
         self.parser = argparse.ArgumentParser()
+        self.opt = None
         self.initialized = False
-        self.mean = [0.485, 0.456, 0.406]
-        self.std = [0.229, 0.224, 0.225]
 
     def initialize(self):
-        # self.parser.add_argument('--dataroot', required=True, help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
-        self.parser.add_argument('--batchSize', type=int, default=80, help='input batch size')
+        self.parser.add_argument('--batchSize', type=int, default=24, help='input batch size')
         self.parser.add_argument('--imageSize', type=int, default=256, help='input image size')
-        self.parser.add_argument('--input_nc', type=int, default=3, help='input image channel')
-        self.parser.add_argument('--gpu_ids', type=str, default='0,1', help='gpu ids: e.g. 0  0,1,2, 0,2')
-        self.parser.add_argument('--name', type=str, default='pbr-mlt', help='name of the experiment. It decides where to store samples and models')
-        self.parser.add_argument('--model', type=str, default='UNet',
-                                 help='chooses which model to use. FCN, DeepLab, etc')
+        self.parser.add_argument('--mean', type=list, default=[0.485, 0.456, 0.406], help='input image size')
+        self.parser.add_argument('--std', type=list, default=[0.229, 0.224, 0.225], help='input image size')
+        self.parser.add_argument('--name', type=str, default='', help='name of the experiment. It decides where to store samples and models')
+        self.parser.add_argument('--model', type=str, default='CapModel', help='which model to use')
+        self.parser.add_argument('--results_dir', type=str, default='',
+                                 help='path to save validation results.')
         self.parser.add_argument('--base', type=str, default='densenet169',
                                  help='chooses which backbone network to use. densenet169, vgg16, etc')
         home = os.path.expanduser("~")
-        self.parser.add_argument('--checkpoints_dir', type=str, default='%s/segggFiles'%home, help='path to save params and tensorboard files')
-        # self.parser.add_argument('--results_dir', type=str, default='../segggFiles/results', help='saves prediction results here.')
-
+        self.parser.add_argument('--checkpoints_dir', type=str, default='%s/mwsFiles'%home, help='path to save params and tensorboard files')
 
     def parse(self):
         if not self.initialized:
             self.initialize()
-        self.opt = self.parser.parse_args()
-        self.opt.isTrain = self.isTrain   # train or test
-        self.opt.mean = self.mean
-        self.opt.std = self.std
-
-
-        str_ids = self.opt.gpu_ids.split(',')
-        self.opt.gpu_ids = []
-        for str_id in str_ids:
-            id = int(str_id)
-            if id >= 0:
-                self.opt.gpu_ids.append(id)
+        self.opt, _ = self.parser.parse_known_args()
+        self.parser = getattr(models, self.opt.model).modify_commandline_options(self.parser, self.opt.is_train)
+        self.opt, _ = self.parser.parse_known_args()
 
         # save to the disk
+        if self.opt.name == '':
+            self.opt.name = '_'.join([self.opt.model, self.opt.base])
         expr_dir = os.path.join(self.opt.checkpoints_dir, self.opt.name)
-        self.opt.results_dir = '{}/results'.format(expr_dir)
         if not os.path.exists(expr_dir):
             os.makedirs(expr_dir)
+        if self.opt.results_dir == '':
+            self.opt.results_dir = '{}/results'.format(expr_dir)
         if not os.path.exists(self.opt.results_dir):
             os.makedirs(self.opt.results_dir)
+        if hasattr(self.opt, 'cap_results_dir'):
+            if self.opt.cap_results_dir == '':
+                self.opt.cap_results_dir = '{}/cap_results'.format(expr_dir)
+            if not os.path.exists(self.opt.cap_results_dir):
+                os.makedirs(self.opt.cap_results_dir)
+        if hasattr(self.opt, 'cls_results_dir'):
+            if self.opt.cls_results_dir == '':
+                self.opt.cls_results_dir = '{}/cls_results'.format(expr_dir)
+            if not os.path.exists(self.opt.cls_results_dir):
+                os.makedirs(self.opt.cls_results_dir)
+
+        self.opt.batchSize = self.opt.batchSize/torch.cuda.device_count()*torch.cuda.device_count()
 
         args = vars(self.opt)
 
