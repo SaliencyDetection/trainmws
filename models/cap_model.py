@@ -7,7 +7,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from PIL import Image
 from .base_model import BaseModel
 
-import networks
+from . import networks
 import pdb
 
 
@@ -35,7 +35,7 @@ class CapModel(BaseModel):
                                                 lr=1e-4)
         msk_size = 16
         # val = np.ones((msk_size, msk_size))
-        if not opt.no_self_train:
+        if opt.self_train:
             device = next(self.net.parameters()).device
             self.net.load_state_dict(torch.load('cap_init.pth', map_location={'cuda:%d' % device.index: 'cpu'}), )
             self.criterion_st = networks.SelfTrainLoss(self.v_mean, self.v_std)

@@ -19,8 +19,8 @@ class BaseModel(object):
             the modified parser.
         """
         if is_train:
-            parser.add_argument('--no_self_train', action='store_true',
-                                help='not using self training loss')
+            parser.add_argument('--self_train', action='store_true',
+                                help='using self training loss')
         return parser
 
     def __init__(self, opt):

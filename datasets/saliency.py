@@ -3,7 +3,7 @@ import numpy as np
 import PIL.Image as Image
 import torch
 import pdb
-from base_data import BaseData
+from .base_data import BaseData
 
 
 class Folder(BaseData):

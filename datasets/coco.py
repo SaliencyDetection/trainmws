@@ -5,7 +5,7 @@ import numpy as np
 import nltk
 from PIL import Image
 from pycocotools.coco import COCO
-from base_data import BaseData
+from .base_data import BaseData
 
 
 class CocoCaption(BaseData):

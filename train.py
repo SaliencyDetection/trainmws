@@ -1,12 +1,11 @@
 # coding=utf-8
-
 import pdb
 import time
 import torch
 import sys
 from tqdm import tqdm
 import models
-from datasets import Folder, CocoCaption, caption_collate_fn, ImageNetDetCls, ImageFiles
+from datasets import Folder, CocoCaption, caption_collate_fn, ImageNetDetCls, ImageFolders
 from evaluate_sal import fm_and_mae
 from datasets.build_vocab import Vocabulary
 import pickle
@@ -42,7 +41,7 @@ cls_train_loader = torch.utils.data.DataLoader(
                    mean=opt.mean, std=opt.std, training=True),
     batch_size=opt.batchSize, shuffle=True, num_workers=4, pin_memory=True)
 unl_train_loader = torch.utils.data.DataLoader(
-    ImageFiles(opt.imagenet_cls_dir,
+    ImageFolders(opt.imagenet_cls_dir,
                    crop=None, flip=True, rotate=None, size=opt.imageSize,
                    mean=opt.mean, std=opt.std, training=True),
     batch_size=opt.batchSize, shuffle=True, num_workers=4, pin_memory=True)

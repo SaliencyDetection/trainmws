@@ -6,6 +6,44 @@ from .base_data import BaseData
 import pdb
 
 
+class ImageFolders(BaseData):
+    def __init__(self, root, size=256, training=True,
+                 crop=None, rotate=None, flip=False, mean=None, std=None):
+        super(ImageFolders, self).__init__(size=size, crop=crop, rotate=rotate, flip=flip, mean=mean, std=std)
+        self.root = root
+        self.training = training
+        folders = os.listdir(root)
+        self.img_filenames = [os.path.join(root, os.path.join(f, n))
+                              for f in folders for n in os.listdir(os.path.join(root, f))]
+
+    def __len__(self):
+        return len(self.img_filenames)
+
+    def __getitem__(self, index):
+        # load image
+        img_file = self.img_filenames[index]
+        img = Image.open(img_file).convert('RGB')
+        if self.crop is not None:
+            img, = self.random_crop(img)
+        if self.rotate is not None:
+            img, = self.random_rotate(img)
+        if self.flip:
+            img, = self.random_flip(img)
+        img = img.resize(self.size)
+        img = np.array(img, dtype=np.float64) / 255.0
+        if len(img.shape) < 3:
+            img = np.stack((img, img, img), 2)
+        if img.shape[2] > 3:
+            img = img[:, :, :3]
+        if self.mean is not None:
+            img -= self.mean
+        if self.std is not None:
+            img /= self.std
+        img = img.transpose(2, 0, 1)
+        img = torch.from_numpy(img).float()
+        return img
+
+
 class ImageFiles(BaseData):
     def __init__(self, root, size=256, training=True,
                  crop=None, rotate=None, flip=False, mean=None, std=None):

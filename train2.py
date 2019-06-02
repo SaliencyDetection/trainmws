@@ -24,7 +24,7 @@ val_loader = torch.utils.data.DataLoader(
            mean=opt.mean, std=opt.std, training=False),
     batch_size=opt.batchSize, shuffle=True, num_workers=4, pin_memory=True)
 train_loader = torch.utils.data.DataLoader(
-    Folder(opt.train_img_dir, './dut-train-crf_bin',
+    Folder(opt.train_img_dir, './zhang-dut-train-crf_bin',
            crop=0.9, flip=True, rotate=None, size=opt.imageSize,
            mean=opt.mean, std=opt.std, training=True),
     batch_size=opt.batchSize, shuffle=True, num_workers=4, pin_memory=True)

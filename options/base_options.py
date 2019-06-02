@@ -52,7 +52,7 @@ class BaseOptions:
             if not os.path.exists(self.opt.cls_results_dir):
                 os.makedirs(self.opt.cls_results_dir)
 
-        self.opt.batchSize = self.opt.batchSize/torch.cuda.device_count()*torch.cuda.device_count()
+        self.opt.batchSize = int(self.opt.batchSize/torch.cuda.device_count())*torch.cuda.device_count()
 
         args = vars(self.opt)
 
